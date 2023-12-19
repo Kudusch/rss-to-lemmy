@@ -83,8 +83,7 @@ def setup():
     global API_BASE
     global API_VERSION
     
-    API_BASE = "discuss.tchncs.de"
-    #API_BASE = "startrek.website"
+    API_BASE = "startrek.website"
     API_VERSION = "api/v3"
 
     config = configparser.ConfigParser()
@@ -121,7 +120,7 @@ if __name__ == "__main__":
     # Post new episodes of the Greatest Generation, if any
     for name, body, url, guid in get_new_episodes("GG"):
         print(f"Posting {name} to {API_BASE}")
-        post = create_post("test", name, body, url)
+        post = create_post("greatestgen", name, body, url)
         if post:
             update_last_guid("GG", guid)
         else:
@@ -130,7 +129,7 @@ if __name__ == "__main__":
     # Post new episodes of Greatest Trek, if any
     for name, body, url, guid in get_new_episodes("GT"):
         print(f"Posting {name} to {API_BASE}")
-        post = create_post("test", name, body, url)
+        post = create_post("greatestgen", name, body, url)
         if post:
             update_last_guid("GT", guid)
         else:
