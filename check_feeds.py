@@ -6,6 +6,7 @@ import feedparser
 import re
 from os.path import exists
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 def get_jwt():
     headers = {"Content-Type": "application/json",}
@@ -85,7 +86,7 @@ def get_new_episodes(feed_id):
             url = ""
         yield name, body, url, item.guid
     if n == 0:
-        print(f"Found no new posts in {feed.feed.title}")
+        print(f"{datetime.now():%Y-%m-%dT%H:%M:%S} - Found no new posts in {feed.feed.title}")
 
 def get_latest_guid(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
@@ -137,17 +138,17 @@ if __name__ == "__main__":
     for name, body, url, guid in get_new_episodes("GG"):
         post = create_post(name, body, url)
         if post:
-            print(f"Posting {name} to {API_BASE}/c/{COMMUNITY}")
+            print(f"{datetime.now():%Y-%m-%dT%H:%M:%S} - Posting {name} to {API_BASE}/c/{COMMUNITY}")
             update_last_guid("GG", guid)
         else:
-            print("Error posting")
+            print("{datetime.now():%Y-%m-%dT%H:%M:%S} - Error posting")
     
     # Post new episodes of Greatest Trek, if any
     for name, body, url, guid in get_new_episodes("GT"):
         post = create_post( name, body, url)
         if post:
-            print(f"Posting {name} to {API_BASE}")
+            print(f"{datetime.now():%Y-%m-%dT%H:%M:%S} - Posting {name} to {API_BASE}/c/{COMMUNITY}")
             update_last_guid("GT", guid)
         else:
-            print("Error posting")
+            print("{datetime.now():%Y-%m-%dT%H:%M:%S} - Error posting")
 
