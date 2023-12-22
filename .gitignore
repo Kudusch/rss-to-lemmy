@@ -1,3 +1,4 @@
 config.ini
 last_guids.txt
 venv
+__pycache__
