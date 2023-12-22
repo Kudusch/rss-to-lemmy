@@ -5,7 +5,9 @@ This Python script checks the RSS feeds for [The Greatest Generation](https://ma
 ## Installation
 
 `virtualenv -p python3 venv`
+
 `source venv/bin/activate`
+
 `pip install -r requirements.txt`
 
 Edit `example_config.ini` with the posting user's credentials and rename the file to `config.ini`.
