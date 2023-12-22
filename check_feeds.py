@@ -23,24 +23,36 @@ def get_community_id(community_name):
     except:
         return None
 
-def check_auth():
-    JWT = get_jwt()
-    headers = {"Content-Type": "application/json","Authorization":f"Bearer {JWT}"}
-    r = requests.get(f"https://{API_BASE}/{API_VERSION}/user/validate_auth", headers=headers)
-    return r
+def get_auth_type():
+    r = requests.get(f"https://{API_BASE}/{API_VERSION}/site")
+    version = r.json()["version"].split(".")
+    if version[1] == "18":
+        return "payload"
+    elif version[1] == "19":
+        return "header"
 
-def create_post(community_name, name, body, url=None):
-    community_id = get_community_id(community_name)
+def create_post(name, body, url=None):
+    community_id = get_community_id(COMMUNITY)
     JWT = get_jwt()
-    headers = {"Content-Type": "application/json","Authorization":f"Bearer {JWT}"}
     payload = {
         "community_id":community_id,
         "name":name,
         "body":body,
         "url":url
     }
-    r = requests.post(f"https://{API_BASE}/{API_VERSION}/post", headers=headers, data=json.dumps(payload))
-    return r
+    headers = {"Content-Type": "application/json"}
+    if get_auth_type() == "header":
+        headers["Authorization"] = f"Bearer {JWT}"
+    else:
+        payload["auth"] = JWT
+    try:
+        r = requests.post(f"https://{API_BASE}/{API_VERSION}/post", headers=headers, data=json.dumps(payload))
+        if r.status_code == 200:
+            return r
+        else:
+            return None
+    except Exception as e:
+        return None
 
 def update_last_guid(k, v):
     with open("last_guids.txt", "r") as f:
@@ -51,7 +63,7 @@ def update_last_guid(k, v):
 
 def get_new_episodes(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
-    for item in feed.entries:
+    for n, item in enumerate(feed.entries):
         if item.guid == FEEDS[feed_id]["last_guid"]:
             break
         if "itunes_episode" in item.keys():
@@ -66,24 +78,28 @@ def get_new_episodes(feed_id):
             body = ""
 
         try:
-            url = re.sub(r"[^\w]+", "-", name).strip("-").lower()
-            url = f"https://maximumfun.org/episodes/greatest-generation/{url}/"
+            url = re.sub(r"['’]", "", name)
+            url = re.sub(r"[^\w]+", "-", url).strip("-").lower()
+            url = f"{FEEDS[feed_id]['maxfun_url']}/{url}/"
         except:
             url = ""
         yield name, body, url, item.guid
+    if n == 0:
+        print(f"Found no new posts in {feed.feed.title}")
 
 def get_latest_guid(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
     return feed.entries[0].guid
 
-def setup():
+def setup(api_base):
     global FEEDS
     global USER
     global PASSWORD
+    global COMMUNITY
     global API_BASE
     global API_VERSION
     
-    API_BASE = "startrek.website"
+    API_BASE = api_base
     API_VERSION = "api/v3"
 
     config = configparser.ConfigParser()
@@ -91,16 +107,16 @@ def setup():
     try:
         USER = config[API_BASE]["USER"]
         PASSWORD = config[API_BASE]["PASSWORD"]
-        if check_auth().status_code == 200:
-            print(f"Credentials found for user {USER} on {API_BASE}")
-        else:
-            exit("Set USER in config.ini")
+        COMMUNITY =  config[API_BASE]["COMMUNITY"]
     except:
-        exit("Set USER in config.ini")
+        exit("Set USER, PASSWORD and COMMUNITY in config.ini")
 
     FEEDS = {"GG":{}, "GT":{}}
     FEEDS["GG"]["url"] = "http://feeds.feedburner.com/TheGreatestGeneration"
+    FEEDS["GG"]["maxfun_url"] = "https://maximumfun.org/episodes/greatest-generation"
+
     FEEDS["GT"]["url"] = "http://feeds.feedburner.com/GreatestDiscovery"
+    FEEDS["GT"]["maxfun_url"] = "https://maximumfun.org/episodes/greatest-trek"
     if not exists("last_guids.txt"):
         with open("last_guids.txt", "a") as f:
             for k in FEEDS:
@@ -115,22 +131,22 @@ def setup():
 
 if __name__ == "__main__":
     # Setup last_guids.txt and global variables
-    setup()
-    
+    setup("startrek.website")
+
     # Post new episodes of the Greatest Generation, if any
     for name, body, url, guid in get_new_episodes("GG"):
-        print(f"Posting {name} to {API_BASE}")
-        post = create_post("greatestgen", name, body, url)
+        post = create_post(name, body, url)
         if post:
+            print(f"Posting {name} to {API_BASE}/c/{COMMUNITY}")
             update_last_guid("GG", guid)
         else:
             print("Error posting")
     
     # Post new episodes of Greatest Trek, if any
     for name, body, url, guid in get_new_episodes("GT"):
-        print(f"Posting {name} to {API_BASE}")
-        post = create_post("greatestgen", name, body, url)
+        post = create_post( name, body, url)
         if post:
+            print(f"Posting {name} to {API_BASE}")
             update_last_guid("GT", guid)
         else:
             print("Error posting")
