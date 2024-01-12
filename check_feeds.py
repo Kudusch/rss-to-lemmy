@@ -4,7 +4,7 @@ import requests
 import json
 import feedparser
 import re
-from os.path import exists
+from os.path import exists, dirname, abspath
 from bs4 import BeautifulSoup
 from datetime import datetime
 
@@ -49,23 +49,28 @@ def create_post(name, body, url=None):
     try:
         r = requests.post(f"https://{API_BASE}/{API_VERSION}/post", headers=headers, data=json.dumps(payload))
         if r.status_code == 200:
-            return r
+            return r.json()
         else:
             return None
     except Exception as e:
         return None
 
 def update_last_guid(k, v):
-    with open("last_guids.txt", "r") as f:
+    with open(f"{BASE_PATH}/last_guids.txt", "r") as f:
         last_guids = f.read()
     last_guids = re.sub(fr"{k}:.*", f"{k}:{v}", last_guids)
-    with open("last_guids.txt", "w") as f:
+    with open(f"{BASE_PATH}/last_guids.txt", "w") as f:
         f.write(last_guids)
 
 def get_new_episodes(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
     for n, item in enumerate(feed.entries):
+        # Stop the loop when the latest episode is reached
         if item.guid == FEEDS[feed_id]["last_guid"]:
+            break
+        # Stop the loop after the 5th new episode to prevent spamming
+        # in case something changed in the feed structure
+        if n > 5:
             break
         if "itunes_episode" in item.keys():
             name = f"Ep {item.itunes_episode}: {item.title}"
@@ -99,12 +104,14 @@ def setup(api_base):
     global COMMUNITY
     global API_BASE
     global API_VERSION
-    
+    global BASE_PATH
+
     API_BASE = api_base
     API_VERSION = "api/v3"
 
+    BASE_PATH = abspath(dirname(__file__))
     config = configparser.ConfigParser()
-    config.read("config.ini")
+    config.read(f"{BASE_PATH}/config.ini")
     try:
         USER = config[API_BASE]["USER"]
         PASSWORD = config[API_BASE]["PASSWORD"]
@@ -118,13 +125,13 @@ def setup(api_base):
 
     FEEDS["GT"]["url"] = "http://feeds.feedburner.com/GreatestDiscovery"
     FEEDS["GT"]["maxfun_url"] = "https://maximumfun.org/episodes/greatest-trek"
-    if not exists("last_guids.txt"):
-        with open("last_guids.txt", "a") as f:
+    if not exists(f"{BASE_PATH}/last_guids.txt"):
+        with open(f"{BASE_PATH}/last_guids.txt", "a") as f:
             for k in FEEDS:
                 f.write(f"{k}:{get_latest_guid(k)}\n")
                 FEEDS[k]["last_guid"] = get_latest_guid(k)
     else:
-        with open("last_guids.txt", "r") as f:
+        with open(f"{BASE_PATH}/last_guids.txt", "r") as f:
             for l in f.readlines():
                 k, v = l.strip().split(":")
                 FEEDS[k]["last_guid"] = v
@@ -142,7 +149,7 @@ if __name__ == "__main__":
             update_last_guid("GG", guid)
         else:
             print("{datetime.now():%Y-%m-%dT%H:%M:%S} - Error posting")
-    
+
     # Post new episodes of Greatest Trek, if any
     for name, body, url, guid in get_new_episodes("GT"):
         post = create_post( name, body, url)
