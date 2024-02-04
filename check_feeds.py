@@ -64,6 +64,7 @@ def update_last_guid(k, v):
 
 def get_new_episodes(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
+    n = 0
     for n, item in enumerate(feed.entries):
         # Stop the loop when the latest episode is reached
         if item.guid == FEEDS[feed_id]["last_guid"]:
@@ -91,7 +92,7 @@ def get_new_episodes(feed_id):
             url = ""
         yield name, body, url, item.guid
     if n == 0:
-        print(f"{datetime.now():%Y-%m-%dT%H:%M:%S} - Found no new posts in {feed.feed.title}")
+        print(f"{datetime.now():%Y-%m-%dT%H:%M:%S} - Found no new posts in {feed_id}")
 
 def get_latest_guid(feed_id):
     feed = feedparser.parse(FEEDS[feed_id]["url"])
@@ -120,10 +121,10 @@ def setup(api_base):
         exit("Set USER, PASSWORD and COMMUNITY in config.ini")
 
     FEEDS = {"GG":{}, "GT":{}}
-    FEEDS["GG"]["url"] = "http://feeds.feedburner.com/TheGreatestGeneration"
+    FEEDS["GG"]["url"] = "https://feeds.simplecast.com/_mp2DeJd"
     FEEDS["GG"]["maxfun_url"] = "https://maximumfun.org/episodes/greatest-generation"
 
-    FEEDS["GT"]["url"] = "http://feeds.feedburner.com/GreatestDiscovery"
+    FEEDS["GT"]["url"] = "https://feeds.simplecast.com/d1rbEtgZ"
     FEEDS["GT"]["maxfun_url"] = "https://maximumfun.org/episodes/greatest-trek"
     if not exists(f"{BASE_PATH}/last_guids.txt"):
         with open(f"{BASE_PATH}/last_guids.txt", "a") as f:
